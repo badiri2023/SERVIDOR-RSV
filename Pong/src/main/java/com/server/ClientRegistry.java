@@ -1,4 +1,4 @@
-package com.project.server;
+package com.server;
 
 import org.java_websocket.WebSocket;
 import org.json.JSONArray;
@@ -114,24 +114,30 @@ final class ClientRegistry {
      * Registra un nom personalitzat si no està en ús.
      */
 public boolean registerNickname(String nickname, WebSocket socket) {
-    System.out.println("✅ Registro exitoso: " + nickname + " desde " + socket.getRemoteSocketAddress());
+    System.out.println("Registro exitoso: " + nickname + " desde " + socket.getRemoteSocketAddress());
 
     if (nickname == null || nickname.isBlank()) return false;
     if (nickname.length() > 20) return false;
     if (!nickname.matches("[a-zA-Z0-9_\\-]+")) return false;
 
     synchronized (lock) {
-        if (bySocket.containsKey(socket)) return false;
-        if (byName.containsKey(nickname)) return false;
-
+        // Comprobar si el socket ya está registrado
+        if (bySocket.containsKey(socket)) {
+            System.out.println("Fallo: Socket ya registrado.");
+            return false;
+        } 
+        // Comprobar si el nombre ya está en uso
+        if (byName.containsKey(nickname)) {
+            System.out.println("Fallo: Nickname duplicado -> " + nickname);
+            return false;
+        }
         bySocket.put(socket, nickname);
         byName.put(nickname, socket);
 
-        System.out.println("✅ Registro exitoso: " + nickname + " desde " + socket.getRemoteSocketAddress());
+        System.out.println("Registro exitoso: " + nickname + " desde " + socket.getRemoteSocketAddress());
         return true;
     }
 }
-
 
     /**
      * Retorna una còpia immutable de l'estat actual del mapa socket a nom.
