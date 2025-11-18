@@ -244,7 +244,7 @@ public class Main extends WebSocketServer {
                 
                 WebSocket targetSocket = clients.socketByName(targetName);
                 
-                System.out.println("🎯 PROCESANDO CHALLENGE: De " + fromName + " para " + targetName);
+                System.out.println("PROCESANDO CHALLENGE: De " + fromName + " para " + targetName);
                 
                 if (targetSocket != null) {
                     JSONObject challengeMsg = new JSONObject()
@@ -252,9 +252,9 @@ public class Main extends WebSocketServer {
                             .put("from", fromName);
                     
                     sendSafe(targetSocket, challengeMsg.toString());
-                    System.out.println("✅ Challenge enviado a " + targetName);
+                    System.out.println("Challenge enviado a " + targetName);
                 } else {
-                    System.out.println("❌ Target no encontrado: " + targetName);
+                    System.out.println("Target no encontrado: " + targetName);
                     // Opcional: informar al remitente que el jugador no existe
                     JSONObject errorMsg = new JSONObject()
                             .put("type", "error")
