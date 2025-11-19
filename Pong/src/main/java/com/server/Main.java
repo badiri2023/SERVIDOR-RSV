@@ -211,9 +211,11 @@ public class Main extends WebSocketServer {
                 if (type.equals("move")) {
                     // Cliente envía su Y (0.0 a 1.0)
                     double y_pos = msg.optDouble("y_pos", 0.5); 
-                    game.updatePaddle(conn, y_pos);
+                    System.out.println("Movimiento recibido de " + senderName + ": " + y_pos);
+                    
+                    // ✅ REDIRIGIR el movimiento a la GameSession
+                    game.processMove(conn, y_pos);
                 }
-                // (Ignorar otros mensajes como 'challenge' si ya está jugando)
                 return; 
             }
 
