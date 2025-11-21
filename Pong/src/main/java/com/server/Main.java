@@ -205,16 +205,22 @@ public class Main extends WebSocketServer {
             // Si el jugador ya está en una partida, sus mensajes son de "juego"
             GameSession game = activeGames.get(conn);
             if (game != null) {
-                JSONObject msg = new JSONObject(message);
-                String type = msg.optString("type", "");
-                
-                if (type.equals("move")) {
-                    // Cliente envía su Y (0.0 a 1.0)
-                    double y_pos = msg.optDouble("y_pos", 0.5); 
-                    System.out.println("Movimiento recibido de " + senderName + ": " + y_pos);
+                // ✅ MEJORADO: Manejar tanto JSON como texto plano para movimiento
+                if (message.trim().startsWith("{")) {
+                    // Mensaje JSON
+                    JSONObject msg = new JSONObject(message);
+                    String type = msg.optString("type", "");
                     
-                    // ✅ REDIRIGIR el movimiento a la GameSession
-                    game.processMove(conn, y_pos);
+                    if (type.equals("move")) {
+                        double y_pos = msg.optDouble("y_pos", 0.5); 
+                        senderName = clients.nameBySocket(conn);
+                        System.out.println("🎮 MOVIMIENTO JSON de " + senderName + ": " + y_pos);
+                        
+                        game.processMove(conn, y_pos);
+                    }
+                } else {
+                    // ✅ POSIBLE: Manejar mensajes de texto plano si los hay
+                    System.out.println("📨 Mensaje de texto en partida: " + message);
                 }
                 return; 
             }

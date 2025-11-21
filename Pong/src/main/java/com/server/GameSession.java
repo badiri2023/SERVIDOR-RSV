@@ -12,6 +12,10 @@ public class GameSession implements Runnable {
     private static final int WINNING_SCORE = 5; // Gana el primero que llega a 5
     private static final int LOADING_SCREEN_MS = 3000; // 3 seg de carga
     private static final int PRE_COUNTDOWN_MS = 2000; // 2 seg para leer quién saca
+    
+    // ✅ NUEVO: Velocidades de la pelota
+    private static final double BALL_SPEED = 0.00;
+    private static final double PADDLE_HEIGHT_NORMALIZED = 0.2; // 20% del campo
 
     private final WebSocket p1;
     private final String p1_name;
@@ -22,7 +26,8 @@ public class GameSession implements Runnable {
     // Estado del juego
     private volatile double p1_y = 0.5, p2_y = 0.5;
     private volatile double ball_x = 0.5, ball_y = 0.5;
-    private volatile double ball_vx = 0.0, ball_vy = 0.0; // Velocidad 0 para pruebas
+  
+    private volatile double ball_vx = BALL_SPEED, ball_vy = 0.0;
     private volatile int score1 = 0, score2 = 0;
 
     private volatile boolean running = true;
@@ -54,10 +59,15 @@ public class GameSession implements Runnable {
             return;
         }
         
-        System.out.println("🎯 MOVIMIENTO PROCESADO - Jugador: " + 
-                          (player == p1 ? p1_name : p2_name) + " | Y: " + y_pos);
+        double clamped_y = Math.max(0.0, Math.min(1.0, y_pos));
+        String playerName = (player == p1) ? p1_name : p2_name;
         
-        updatePaddle(player, y_pos);
+        System.out.println("🎯 MOVIMIENTO PROCESADO - Jugador: " + playerName + " | Y: " + clamped_y);
+        
+        updatePaddle(player, clamped_y);
+        
+        // ✅ ENVIAR ESTADO ACTUALIZADO INMEDIATAMENTE después del movimiento
+        broadcast(createGameStateJSON().toString());
     }
 
     /**
@@ -132,9 +142,10 @@ public class GameSession implements Runnable {
                 // Log cada ~0.5 segundos (30 frames)
                 if (frameCount % 30 == 0) {
                     System.out.println("🔄 Frame " + frameCount + 
-                                     " - P1: " + p1_y + 
-                                     " | P2: " + p2_y + 
-                                     " | Ball: " + ball_x + "," + ball_y);
+                                     " - P1: " + String.format("%.3f", p1_y) + 
+                                     " | P2: " + String.format("%.3f", p2_y) + 
+                                     " | Ball: " + String.format("%.3f", ball_x) + "," + String.format("%.3f", ball_y) +
+                                     " | Score: " + score1 + "-" + score2);
                 }
                 
                 updatePhysics();
@@ -173,12 +184,12 @@ public class GameSession implements Runnable {
             double oldY = this.p1_y;
             this.p1_y = clamped_y;
             System.out.println("✅ PALA P1 ACTUALIZADA - " + p1_name + 
-                             " - De: " + oldY + " a: " + this.p1_y);
+                             " - De: " + String.format("%.3f", oldY) + " a: " + String.format("%.3f", this.p1_y));
         } else if (player == p2) {
             double oldY = this.p2_y;
             this.p2_y = clamped_y;
             System.out.println("✅ PALA P2 ACTUALIZADA - " + p2_name + 
-                             " - De: " + oldY + " a: " + this.p2_y);
+                             " - De: " + String.format("%.3f", oldY) + " a: " + String.format("%.3f", this.p2_y));
         } else {
             System.out.println("❌ JUGADOR NO RECONOCIDO en updatePaddle");
         }
@@ -201,7 +212,9 @@ public class GameSession implements Runnable {
         JSONObject endMsg = new JSONObject()
                 .put("type", "game_over")
                 .put("reason", "Oponente desconectado")
-                .put("winner", winnerName);
+                .put("winner", winnerName)
+                .put("score1", score1)
+                .put("score2", score2);
         
         // Se lo enviamos al jugador que queda
         server.sendSafe(remainingPlayer, endMsg.toString());
@@ -218,7 +231,9 @@ public class GameSession implements Runnable {
 
         JSONObject endMsg = new JSONObject()
                 .put("type", "game_over")
-                .put("winner", winnerName);
+                .put("winner", winnerName)
+                .put("score1", score1)
+                .put("score2", score2);
         
         // Se lo enviamos a TODOS (jugadores y Pi)
         broadcast(endMsg.toString());
@@ -246,55 +261,67 @@ public class GameSession implements Runnable {
      * Lógica de física de Pong - MODIFICADA CON CONDICIÓN DE VICTORIA
      */
     private void updatePhysics() {
-        // Mover pelota (si la velocidad no es 0)
-        if (ball_vx != 0 || ball_vy != 0) {
-            ball_x += ball_vx;
-            ball_y += ball_vy;
+        // ✅ MOVER PELOTA (ahora sí tiene velocidad)
+        ball_x += ball_vx;
+        ball_y += ball_vy;
 
-            // Log ocasional de física (cada ~1 segundo)
-            if (System.currentTimeMillis() % 1000 < 16) {
-                System.out.println("⚡ Física - Ball: " + String.format("%.3f", ball_x) + "," + String.format("%.3f", ball_y) + 
-                                  " | Vel: " + String.format("%.5f", ball_vx) + "," + String.format("%.5f", ball_vy));
-            }
+        // Log ocasional de física (cada ~1 segundo)
+        if (frameCount % 60 == 0) { // Cada segundo aprox (60 frames)
+            System.out.println("⚡ Física - Ball: " + String.format("%.3f", ball_x) + "," + String.format("%.3f", ball_y) + 
+                              " | Vel: " + String.format("%.5f", ball_vx) + "," + String.format("%.5f", ball_vy));
         }
 
         // Colisión con paredes (arriba/abajo)
         if (ball_y < 0) { 
             ball_y = 0; 
-            ball_vy = -ball_vy; 
+            ball_vy = Math.abs(ball_vy); // Rebote hacia abajo
             System.out.println("🔨 Rebote techo");
         }
         if (ball_y > 1) { 
             ball_y = 1; 
-            ball_vy = -ball_vy; 
+            ball_vy = -Math.abs(ball_vy); // Rebote hacia arriba
             System.out.println("🔨 Rebote suelo");
         }
 
-        // Colisión con pala 1 (izquierda, p1)
-        if (ball_x < 0.05) {
-            if (ball_y > p1_y - 0.1 && ball_y < p1_y + 0.1) {
-                ball_x = 0.05;
-                ball_vx = -ball_vx;
-                System.out.println("🔨 Rebote P1: " + p1_name);
-            } else {
+        // ✅ CORREGIDO: Colisión con pala 1 (izquierda, p1)
+        if (ball_x < 0.05 && ball_vx < 0) { // Solo si se mueve hacia la izquierda
+            if (ball_y >= p1_y - PADDLE_HEIGHT_NORMALIZED/2 && 
+                ball_y <= p1_y + PADDLE_HEIGHT_NORMALIZED/2) {
+                
+                // Rebote con ángulo según dónde golpee la pala
+                double hitPos = (ball_y - p1_y) / (PADDLE_HEIGHT_NORMALIZED/2);
+                ball_vy = hitPos * BALL_SPEED * 0.8; // Ángulo vertical
+                ball_vx = Math.abs(ball_vx) * 1.05; // Aumentar velocidad + invertir dirección
+                
+                ball_x = 0.05; // Corregir posición
+                System.out.println("🔨 Rebote P1: " + p1_name + " | Ángulo: " + String.format("%.3f", hitPos));
+            } else if (ball_x < 0) {
                 // Punto para P2
                 score2++;
                 System.out.println("🎯 PUNTO para P2: " + p2_name + " - Score: " + score1 + "-" + score2);
-                resetBall(false); // Saca P2
+                resetBall(false);
+                return; // Salir para evitar procesamiento extra
             }
         }
 
-        // Colisión con pala 2 (derecha, p2)
-        if (ball_x > 0.95) {
-            if (ball_y > p2_y - 0.1 && ball_y < p2_y + 0.1) {
-                ball_x = 0.95;
-                ball_vx = -ball_vx;
-                System.out.println("🔨 Rebote P2: " + p2_name);
-            } else {
+        // ✅ CORREGIDO: Colisión con pala 2 (derecha, p2)
+        if (ball_x > 0.95 && ball_vx > 0) { // Solo si se mueve hacia la derecha
+            if (ball_y >= p2_y - PADDLE_HEIGHT_NORMALIZED/2 && 
+                ball_y <= p2_y + PADDLE_HEIGHT_NORMALIZED/2) {
+                
+                // Rebote con ángulo según dónde golpee la pala
+                double hitPos = (ball_y - p2_y) / (PADDLE_HEIGHT_NORMALIZED/2);
+                ball_vy = hitPos * BALL_SPEED * 0.8; // Ángulo vertical
+                ball_vx = -Math.abs(ball_vx) * 1.05; // Aumentar velocidad + invertir dirección
+                
+                ball_x = 0.95; // Corregir posición
+                System.out.println("🔨 Rebote P2: " + p2_name + " | Ángulo: " + String.format("%.3f", hitPos));
+            } else if (ball_x > 1) {
                 // Punto para P1
                 score1++;
                 System.out.println("🎯 PUNTO para P1: " + p1_name + " - Score: " + score1 + "-" + score2);
-                resetBall(true); // Saca P1
+                resetBall(true);
+                return; // Salir para evitar procesamiento extra
             }
         }
     }
@@ -310,12 +337,26 @@ public class GameSession implements Runnable {
             return;
         }
         
-        // Si no hay victoria, resetea la pelota
         System.out.println("🔄 Reseteando pelota - Anotó: " + (p1Scored ? p1_name : p2_name));
         
+        // Posición central
         ball_x = 0.5;
         ball_y = 0.5;
         
-        System.out.println("✅ Pelota resetada - Velocidad: 0 (modo prueba)");
+        // ✅ DIRECCIÓN INICIAL: hacia el jugador que NO anotó
+        if (p1Scored) {
+            ball_vx = -BALL_SPEED; // Hacia P2 (derecha a izquierda)
+        } else {
+            ball_vx = BALL_SPEED;  // Hacia P1 (izquierda a derecha)
+        }
+        
+        // Pequeño ángulo vertical aleatorio
+        ball_vy = (Math.random() - 0.5) * BALL_SPEED * 0.5;
+        
+        System.out.println("✅ Pelota resetada - Velocidad: " + 
+                         String.format("%.5f", ball_vx) + "," + String.format("%.5f", ball_vy));
+        
+        // ✅ ENVIAR ESTADO INMEDIATAMENTE después del reset
+        broadcast(createGameStateJSON().toString());
     }
 }
