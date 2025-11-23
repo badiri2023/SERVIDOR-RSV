@@ -37,6 +37,8 @@ public class GameSession implements Runnable {
     // Contador de frames para logs
     private int frameCount = 0;
 
+    private String lastGameState = "";
+
     public GameSession(WebSocket p1, String p1_name, WebSocket p2, String p2_name, Main server) {
         this.p1 = p1; // p1 és qui va acceptar el repte (JUGADOR 1 - ESQUERRA)
         this.p1_name = p1_name;
@@ -62,12 +64,12 @@ public class GameSession implements Runnable {
         double clamped_y = Math.max(0.0, Math.min(1.0, y_pos));
         String playerName = (player == p1) ? p1_name : p2_name;
         
-        System.out.println("🎯 MOVIMIENTO PROCESADO - Jugador: " + playerName + " | Y: " + clamped_y);
+        System.out.println("MOVIMIENTO PROCESADO - Jugador: " + playerName + " | Y: " + clamped_y);
         
         updatePaddle(player, clamped_y);
         
-        // ✅ ENVIAR ESTADO ACTUALIZADO INMEDIATAMENTE después del movimiento
         broadcast(createGameStateJSON().toString());
+        System.out.println("Estado enviado inmediatamente después de movimiento");
     }
 
     /**
@@ -135,21 +137,23 @@ public class GameSession implements Runnable {
             System.out.println("✅ Estado inicial enviado");
 
             // 7. BUCLE DE JUEGO
-            System.out.println("🎮 INICIANDO BUCLE DE JUEGO PRINCIPAL");
+            System.out.println("INICIANDO BUCLE DE JUEGO PRINCIPAL");
             while (running) {
                 frameCount++;
                 
-                // Log cada ~0.5 segundos (30 frames)
-                if (frameCount % 30 == 0) {
-                    System.out.println("🔄 Frame " + frameCount + 
-                                     " - P1: " + String.format("%.3f", p1_y) + 
-                                     " | P2: " + String.format("%.3f", p2_y) + 
-                                     " | Ball: " + String.format("%.3f", ball_x) + "," + String.format("%.3f", ball_y) +
-                                     " | Score: " + score1 + "-" + score2);
+                updatePhysics();
+
+                String currentState = createGameStateJSON().toString();
+                if (!currentState.equals(lastGameState)) {
+                    broadcast(currentState);
+                    lastGameState = currentState;
+                    
+                    // Log ocasional de cambios
+                    if (frameCount % 60 == 0) {
+                        System.out.println("Estado cambiado - Frame: " + frameCount);
+                    }
                 }
                 
-                updatePhysics();
-                broadcast(createGameStateJSON().toString());
                 Thread.sleep(16); // ~60 FPS
             }
 

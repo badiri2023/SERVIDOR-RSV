@@ -207,26 +207,27 @@ public class Main extends WebSocketServer {
                 return;
             }
 
+            System.out.println("Mensaje recibido de " + senderName + ": " + message);
+
             // --- 3. Lógica "En Partida" ---
             // Si el jugador ya está en una partida, sus mensajes son de "juego"
             GameSession game = activeGames.get(conn);
             if (game != null) {
-                // ✅ MEJORADO: Manejar tanto JSON como texto plano para movimiento
+                System.out.println("🎮 Mensaje en partida de " + senderName + ": " + message);
+
                 if (message.trim().startsWith("{")) {
-                    // Mensaje JSON
                     JSONObject msg = new JSONObject(message);
                     String type = msg.optString("type", "");
                     
                     if (type.equals("move")) {
                         double y_pos = msg.optDouble("y_pos", 0.5); 
-                        senderName = clients.nameBySocket(conn);
-                        System.out.println("🎮 MOVIMIENTO JSON de " + senderName + ": " + y_pos);
-                        
+                        System.out.println("MOVIMIENTO RECIBIDO Y PROCESADO de " + senderName + ": " + y_pos);
                         game.processMove(conn, y_pos);
+                    } else {
+                        System.out.println("Otro mensaje JSON en partida - Tipo: " + type);
                     }
                 } else {
-                    // ✅ POSIBLE: Manejar mensajes de texto plano si los hay
-                    System.out.println("📨 Mensaje de texto en partida: " + message);
+                    System.out.println("Mensaje de texto en partida: " + message);
                 }
                 return; 
             }
