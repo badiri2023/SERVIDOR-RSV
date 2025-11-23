@@ -197,28 +197,25 @@ public class GameSession implements Runnable {
 
     /** Detiene el juego si un jugador se desconecta */
     public void stopGame(WebSocket disconnectedPlayer) {
-        if (!running) return; // Ya se ha parado
+        if (!running) return;
         
         String disconnectedName = (disconnectedPlayer == p1) ? p1_name : p2_name;
-        System.out.println("🚫 Deteniendo juego - Desconectado: " + disconnectedName);
+        System.out.println("Deteniendo juego - Desconectado: " + disconnectedName);
         
         this.running = false;
         this.gameThread.interrupt();
 
-        // El jugador que queda es el ganador por abandono
+        // Enviar mensaje específico de desconexión al jugador que queda
         WebSocket remainingPlayer = (disconnectedPlayer == p1) ? p2 : p1;
-        String winnerName = (disconnectedPlayer == p1) ? p2_name : p1_name;
         
-        JSONObject endMsg = new JSONObject()
-                .put("type", "game_over")
-                .put("reason", "Oponente desconectado")
-                .put("winner", winnerName)
-                .put("score1", score1)
-                .put("score2", score2);
+        JSONObject disconnectMsg = new JSONObject()
+                .put("type", "player_disconnected")
+                .put("disconnected_player", disconnectedName)
+                .put("message", "El oponente se ha desconectado");
         
-        // Se lo enviamos al jugador que queda
-        server.sendSafe(remainingPlayer, endMsg.toString());
-        System.out.println("✅ Game_over enviado a: " + winnerName);
+        server.sendSafe(remainingPlayer, disconnectMsg.toString());
+        System.out.println("Mensaje de desconexión enviado a: " + 
+                        ((remainingPlayer == p1) ? p1_name : p2_name));
     }
 
     /** Detiene el juego porque alguien ha ganado */
@@ -241,7 +238,9 @@ public class GameSession implements Runnable {
     }
 
     public WebSocket getOtherPlayer(WebSocket player) {
-        return (player == p1) ? p2 : p1;
+        if (player == p1) return p2;
+        if (player == p2) return p1;
+        return null;
     }
     
     public void addSpectator(WebSocket spec, String name) {

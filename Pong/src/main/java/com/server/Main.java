@@ -145,11 +145,17 @@ public class Main extends WebSocketServer {
         // Si el jugador que se va estaba en una partida, hay que terminarla.
         GameSession game = activeGames.remove(conn);
         if (game != null) {
-            System.out.println("Jugador " + name + " ha abandonado una partida.");
-            // Avisar al otro jugador y parar el bucle del juego
+            System.out.println("🎮 Jugador " + name + " ha abandonado una partida.");
+
             game.stopGame(conn); 
-            // Quitar también al otro jugador del mapa de juegos activos
-            activeGames.remove(game.getOtherPlayer(conn));
+
+            WebSocket otherPlayer = game.getOtherPlayer(conn);
+            if (otherPlayer != null) {
+                activeGames.remove(otherPlayer);
+                System.out.println("Jugador removido de activeGames: " + clients.nameBySocket(otherPlayer));
+            }
+            
+            System.out.println("Partida finalizada por desconexión de: " + name);
         }
         
         // Si la Pi se desconecta
