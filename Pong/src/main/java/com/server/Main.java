@@ -69,14 +69,12 @@ public class Main extends WebSocketServer {
     private final ClientRegistry clients;
     private final CountDownLatch quitLatch;
 
-    // --- LÓGICA DE JUEGO ---
+    // --- logica juego ---
     private final Map<WebSocket, GameSession> activeGames;
     private volatile WebSocket raspberryPiSocket = null;
-    // --- FIN LÓGICA DE JUEGO ---
 
-    // --- ¡LOGGER AÑADIDO! ---
+    // --- logger ---
     private final DatabaseLogger logger = DatabaseLogger.getInstance();
-    // ---
 
     public Main(InetSocketAddress address, CountDownLatch quitLatch) {
         super(address);
@@ -121,9 +119,9 @@ public class Main extends WebSocketServer {
     // WebSocketServer overrides
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        System.out.println("🔌 Nueva conexión desde: " + conn.getRemoteSocketAddress());
-        // --- ¡LOG AÑADIDO! ---
-        logger.log("CONNECTION_OPEN", "Intento de conexión desde: " + conn.getRemoteSocketAddress());
+        System.out.println("🔌 Nueva conexion desde: " + conn.getRemoteSocketAddress());
+        // --- logger ---
+        logger.log("CONNECTION_OPEN", "Intento de conexion desde: " + conn.getRemoteSocketAddress());
         // ---
     }
 
@@ -145,7 +143,7 @@ public class Main extends WebSocketServer {
         // --- LÓGICA DE JUEGO ---
         GameSession game = activeGames.remove(conn);
         if (game != null) {
-            System.out.println("🎮 Jugador " + name + " ha abandonado una partida.");
+            System.out.println("Jugador " + name + " ha abandonado una partida.");
 
             // --- ¡LOG AÑADIDO! ---
             logger.log("GAME_ABANDON", "Jugador " + name + " ha abandonado la partida.");
@@ -288,7 +286,7 @@ public class Main extends WebSocketServer {
                     if (accepted) {
                         System.out.println(senderName + " ACEPTÓ el reto de " + targetName);
 
-                        // --- ¡LOG AÑADIDO! ---
+                        // --- logg ---
                         logger.log("GAME_START", "Partida iniciada: " + senderName + " vs " + targetName);
                         // ---
 
@@ -503,7 +501,7 @@ public class Main extends WebSocketServer {
             Thread.currentThread().interrupt();
         }
 
-        // --- ¡BLOQUE FINAL CORREGIDO! ---
+        // --- cerrar logger---
         System.out.println("Cerrando el logger...");
         server.logger.close(); 
         System.out.println("Sortint…");

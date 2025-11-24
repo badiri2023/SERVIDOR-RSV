@@ -55,7 +55,7 @@ public class GameSession implements Runnable {
 
     public void processMove(WebSocket player, double y_pos) {
         if (!running) {
-            System.out.println("❌ Movimiento ignorado - Juego no activo");
+            System.out.println("Movimiento ignorado - Juego no activo");
             return;
         }
         
@@ -73,7 +73,7 @@ public class GameSession implements Runnable {
     @Override
     public void run() {
         try {
-            System.out.println("🎮 INICIANDO GAME SESSION: " + p1_name + " vs " + p2_name);
+            System.out.println("INICIANDO GAME SESSION: " + p1_name + " vs " + p2_name);
 
             // 1. VISTA DE CARGA (Vista 3)
             JSONObject startMsg = new JSONObject()
@@ -81,17 +81,17 @@ public class GameSession implements Runnable {
                     .put("opponent", p2_name)
                     .put("role", "p1"); 
             server.sendSafe(p1, startMsg.toString());
-            System.out.println("✅ game_start enviado a P1: " + p1_name);
+            System.out.println("game_start enviado a P1: " + p1_name);
 
             startMsg.put("opponent", p1_name)
                     .put("role", "p2"); 
             server.sendSafe(p2, startMsg.toString());
-            System.out.println("✅ game_start enviado a P2: " + p2_name);
+            System.out.println("game_start enviado a P2: " + p2_name);
 
             // 2. ANIMACIÓN "CHOOSING STARTER"
             JSONObject choosingMsg = new JSONObject().put("type", "choosing_starter");
             broadcast(choosingMsg.toString());
-            System.out.println("✅ choosing_starter enviado");
+            System.out.println("choosing_starter enviado");
 
             Thread.sleep(LOADING_SCREEN_MS);
 
@@ -101,7 +101,7 @@ public class GameSession implements Runnable {
                     .put("message", "Starts Player\n" + p2_name) 
                     .put("ttl_ms", PRE_COUNTDOWN_MS); 
             broadcast(announceMsg.toString());
-            System.out.println("✅ starter announcement enviado: " + p2_name);
+            System.out.println("starter announcement enviado: " + p2_name);
 
             Thread.sleep(PRE_COUNTDOWN_MS);
 
@@ -111,7 +111,7 @@ public class GameSession implements Runnable {
                         .put("type", "countdown")
                         .put("value", i);
                 broadcast(countdownMsg.toString());
-                System.out.println("⏰ Countdown: " + i);
+                System.out.println("Countdown: " + i);
                 Thread.sleep(1000); 
             }
 
@@ -120,12 +120,12 @@ public class GameSession implements Runnable {
                     .put("type", "countdown")
                     .put("value", "GO!");
             broadcast(goMsg.toString());
-            System.out.println("🎯 GO! enviado");
+            System.out.println("GO! enviado");
             Thread.sleep(500); 
 
             // 6. POSICIÓN INICIAL
             broadcast(createGameStateJSON().toString());
-            System.out.println("✅ Estado inicial enviado");
+            System.out.println("Estado inicial enviado");
 
             // 7. BUCLE DE JUEGO
             System.out.println("INICIANDO BUCLE DE JUEGO PRINCIPAL");
@@ -148,13 +148,13 @@ public class GameSession implements Runnable {
             }
 
         } catch (InterruptedException e) {
-            System.out.println("❌ Game loop interrumpido.");
+            System.out.println("Game loop interrumpido.");
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            System.out.println("💥 Error en GameSession: " + e.getMessage());
+            System.out.println("Error en GameSession: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            System.out.println("🏁 Partida finalizada. Total frames: " + frameCount);
+            System.out.println("Partida finalizada. Total frames: " + frameCount);
         }
     }
 
@@ -175,15 +175,15 @@ public class GameSession implements Runnable {
         if (player == p1) {
             double oldY = this.p1_y;
             this.p1_y = clamped_y;
-            System.out.println("✅ PALA P1 ACTUALIZADA - " + p1_name + 
+            System.out.println("PALA P1 ACTUALIZADA - " + p1_name + 
                              " - De: " + String.format("%.3f", oldY) + " a: " + String.format("%.3f", this.p1_y));
         } else if (player == p2) {
             double oldY = this.p2_y;
             this.p2_y = clamped_y;
-            System.out.println("✅ PALA P2 ACTUALIZADA - " + p2_name + 
+            System.out.println("PALA P2 ACTUALIZADA - " + p2_name + 
                              " - De: " + String.format("%.3f", oldY) + " a: " + String.format("%.3f", this.p2_y));
         } else {
-            System.out.println("❌ JUGADOR NO RECONOCIDO en updatePaddle");
+            System.out.println("JUGADOR NO RECONOCIDO en updatePaddle");
         }
     }
 
@@ -225,7 +225,7 @@ public class GameSession implements Runnable {
     private void endGame(String winnerName) {
         if (!running) return; 
         
-        System.out.println("🏆 Fin del juego - Ganador: " + winnerName);
+        System.out.println("Game oer - Winner: " + winnerName);
 
         // --- ¡LOG AÑADIDO! ---
         String details = String.format(
@@ -260,7 +260,7 @@ public class GameSession implements Runnable {
     
     public void addSpectator(WebSocket spec, String name) {
         spectators.put(spec, name);
-        System.out.println("👀 Espectador añadido: " + name);
+        System.out.println("Espectador añadido: " + name);
     }
     
     private void broadcast(String message) {
@@ -283,12 +283,12 @@ public class GameSession implements Runnable {
         if (ball_y < 0) { 
             ball_y = 0; 
             ball_vy = Math.abs(ball_vy); 
-            System.out.println("🔨 Rebote techo");
+            System.out.println("Rebote techo");
         }
         if (ball_y > 1) { 
             ball_y = 1; 
             ball_vy = -Math.abs(ball_vy); 
-            System.out.println("🔨 Rebote suelo");
+            System.out.println("Rebote suelo");
         }
 
         if (ball_x < 0.05 && ball_vx < 0) { 
@@ -300,10 +300,10 @@ public class GameSession implements Runnable {
                 ball_vx = Math.abs(ball_vx) * 1.05; 
                 
                 ball_x = 0.05; 
-                System.out.println("🔨 Rebote P1: " + p1_name + " | Ángulo: " + String.format("%.3f", hitPos));
+                System.out.println("Rebote P1: " + p1_name + " | Ángulo: " + String.format("%.3f", hitPos));
             } else if (ball_x < 0) {
                 score2++;
-                System.out.println("🎯 PUNTO para P2: " + p2_name + " - Score: " + score1 + "-" + score2);
+                System.out.println("PUNTO para P2: " + p2_name + " - Score: " + score1 + "-" + score2);
                 resetBall(false);
                 return; 
             }
@@ -318,10 +318,10 @@ public class GameSession implements Runnable {
                 ball_vx = -Math.abs(ball_vx) * 1.05; 
                 
                 ball_x = 0.95; 
-                System.out.println("🔨 Rebote P2: " + p2_name + " | Ángulo: " + String.format("%.3f", hitPos));
+                System.out.println("Rebote P2: " + p2_name + " | Ángulo: " + String.format("%.3f", hitPos));
             } else if (ball_x > 1) {
                 score1++;
-                System.out.println("🎯 PUNTO para P1: " + p1_name + " - Score: " + score1 + "-" + score2);
+                System.out.println("PUNTO para P1: " + p1_name + " - Score: " + score1 + "-" + score2);
                 resetBall(true);
                 return; 
             }
@@ -338,7 +338,7 @@ public class GameSession implements Runnable {
             return;
         }
         
-        System.out.println("🔄 Reseteando pelota - Anotó: " + (p1Scored ? p1_name : p2_name));
+        System.out.println("Reseteando pelota - Puntuacion: " + (p1Scored ? p1_name : p2_name));
         
         ball_x = 0.5;
         ball_y = 0.5;

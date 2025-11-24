@@ -24,7 +24,7 @@ public class DatabaseLogger {
         @Override
         public Thread newThread(Runnable r) {
             Thread t = Executors.defaultThreadFactory().newThread(r);
-            t.setDaemon(true); // <-- ¡LÍNEA MÁGICA!
+            t.setDaemon(true); 
             t.setName("DatabaseLoggerThread");
             return t;
         }
@@ -93,8 +93,8 @@ public class DatabaseLogger {
         executor.shutdown();
         try {
             // Espera un màxim de 5 segons
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) { // <-- Ara fem servir l'import
-                System.err.println("El logger no ha pogut tancar a temps.");
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) { 
+                System.err.println("El logger no cerro a tiempo.");
                 executor.shutdownNow();
             }
             if (connection != null) {
@@ -104,7 +104,7 @@ public class DatabaseLogger {
             System.err.println(e.getMessage());
         } catch (InterruptedException e) {
             executor.shutdownNow();
-            Thread.currentThread().interrupt(); // Restaura l'estat d'interrupció
+            Thread.currentThread().interrupt(); 
         }
     }
 }
