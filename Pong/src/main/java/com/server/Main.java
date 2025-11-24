@@ -4,13 +4,11 @@ import java.io.File;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap; // Importante
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import org.java_websocket.WebSocket;
@@ -30,7 +28,7 @@ import org.json.JSONObject;
 
 /**
  * Servidor WebSocket para Pong (Autoritativo).
- * * Gestiona el lobby (retos) y lanza GameSessions para las partidas.
+ * Gestiona el lobby (retos) y lanza GameSessions para las partidas.
  * También acepta comandos de admin por consola.
  */
 public class Main extends WebSocketServer {
@@ -72,33 +70,26 @@ public class Main extends WebSocketServer {
     private final CountDownLatch quitLatch;
 
     // --- LÓGICA DE JUEGO ---
-    // Mapa para rastrear en qué partida está cada jugador.
-    // (Socket del jugador) -> (La sesión de juego a la que pertenece)
     private final Map<WebSocket, GameSession> activeGames;
-    
-    // Guardar una referencia a la Raspberry Pi cuando se conecte
     private volatile WebSocket raspberryPiSocket = null;
     // --- FIN LÓGICA DE JUEGO ---
 
+    // --- ¡LOGGER AÑADIDO! ---
+    private final DatabaseLogger logger = DatabaseLogger.getInstance();
+    // ---
 
     public Main(InetSocketAddress address, CountDownLatch quitLatch) {
         super(address);
         this.clients = new ClientRegistry();
         this.quitLatch = quitLatch;
-        // Inicializar los nuevos mapas
         this.activeGames = new ConcurrentHashMap<>();
     }
 
     // Helpers
-
     private static JSONObject msg(String type) {
         return new JSONObject().put(K_TYPE, type);
     }
 
-    /**
-     * Envía un mensaje de forma segura.
-     * Hecho 'public' para que GameSession.java pueda usarlo.
-     */
     public void sendSafe(WebSocket to, String payload) {
         if (to == null) return;
         try {
@@ -131,6 +122,9 @@ public class Main extends WebSocketServer {
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         System.out.println("🔌 Nueva conexión desde: " + conn.getRemoteSocketAddress());
+        // --- ¡LOG AÑADIDO! ---
+        logger.log("CONNECTION_OPEN", "Intento de conexión desde: " + conn.getRemoteSocketAddress());
+        // ---
     }
 
     @Override
@@ -138,14 +132,24 @@ public class Main extends WebSocketServer {
         String name = clients.remove(conn);
         if (name == null) {
             System.out.println("Client desconnectat (no registrat): " + conn.getRemoteSocketAddress());
+            // --- ¡LOG AÑADIDO! ---
+            logger.log("DISCONNECT", "Cliente no registrado desconectado: " + conn.getRemoteSocketAddress());
+            // ---
             return;
         }
 
+        // --- ¡LOG AÑADIDO! ---
+        logger.log("DISCONNECT", "Cliente desconectado: " + name);
+        // ---
+
         // --- LÓGICA DE JUEGO ---
-        // Si el jugador que se va estaba en una partida, hay que terminarla.
         GameSession game = activeGames.remove(conn);
         if (game != null) {
             System.out.println("🎮 Jugador " + name + " ha abandonado una partida.");
+
+            // --- ¡LOG AÑADIDO! ---
+            logger.log("GAME_ABANDON", "Jugador " + name + " ha abandonado la partida.");
+            // ---
 
             game.stopGame(conn); 
 
@@ -158,7 +162,6 @@ public class Main extends WebSocketServer {
             System.out.println("Partida finalizada por desconexión de: " + name);
         }
         
-        // Si la Pi se desconecta
         if (conn == raspberryPiSocket) {
             System.out.println("Raspberry Pi desconectada.");
             raspberryPiSocket = null;
@@ -181,17 +184,18 @@ public class Main extends WebSocketServer {
                     sendClientsListToAll();
                     System.out.println("Client registrat amb nom: " + nickname);
 
-                    // Detectar si el nuevo cliente es la Raspberry Pi
+                    // --- ¡LOG AÑADIDO! ---
+                    String ip = conn.getRemoteSocketAddress().toString();
+                    logger.log("CONNECTION", "Cliente registrado: " + nickname + " (IP: " + ip + ")");
+                    // ---
+
                     if (nickname.equalsIgnoreCase("Pantalla") || nickname.equalsIgnoreCase("RaspberryPi") || nickname.equalsIgnoreCase("Pantalla_Matrix")) {
                         System.out.println("¡Raspberry Pi detectada y registrada!");
                         raspberryPiSocket = conn;
-                        // (Opcional) Si hay partidas activas, añadirla como espectadora
-                        // Nota: Esta lógica es simple; si hay múltiples partidas,
-                        // la Pi solo verá la *última* que se cree.
                     }
 
                 } else {
-                    conn.send("REJECTED"); // Nombre duplicado
+                    conn.send("REJECTED"); 
                     conn.close();
                     System.out.println("Intent fallit: nom duplicat → " + nickname);
                 }
@@ -210,7 +214,6 @@ public class Main extends WebSocketServer {
             System.out.println("Mensaje recibido de " + senderName + ": " + message);
 
             // --- 3. Lógica "En Partida" ---
-            // Si el jugador ya está en una partida, sus mensajes son de "juego"
             GameSession game = activeGames.get(conn);
             if (game != null) {
                 System.out.println("🎮 Mensaje en partida de " + senderName + ": " + message);
@@ -252,10 +255,9 @@ public class Main extends WebSocketServer {
                 }
             } 
             
-            // En Main.java - onMessage, después del registro
             else if (type.equals("challenge")) {
                 String targetName = msg.optString("to", "");
-                String fromName = msg.optString("from", senderName); // Usar el del JSON o fallback
+                String fromName = msg.optString("from", senderName); 
                 
                 WebSocket targetSocket = clients.socketByName(targetName);
                 
@@ -270,7 +272,6 @@ public class Main extends WebSocketServer {
                     System.out.println("Challenge enviado a " + targetName);
                 } else {
                     System.out.println("Target no encontrado: " + targetName);
-                    // Opcional: informar al remitente que el jugador no existe
                     JSONObject errorMsg = new JSONObject()
                             .put("type", "error")
                             .put("message", "Jugador no encontrado: " + targetName);
@@ -279,40 +280,34 @@ public class Main extends WebSocketServer {
             }
             
             else if (type.equals("challenge_response")) {
-                String targetName = msg.optString("to", ""); // El retador original
+                String targetName = msg.optString("to", ""); 
                 boolean accepted = msg.optBoolean("accepted", false);
                 WebSocket targetSocket = clients.socketByName(targetName);
 
                 if (targetSocket != null) {
                     if (accepted) {
-                        // --- ¡AQUÍ ESTÁ LA CREACIÓN DEL JUEGO! ---
                         System.out.println(senderName + " ACEPTÓ el reto de " + targetName);
 
-                        // 1. Crear la sesión de juego
-                        // (p1 es el que acepta, p2 es el que reta)
+                        // --- ¡LOG AÑADIDO! ---
+                        logger.log("GAME_START", "Partida iniciada: " + senderName + " vs " + targetName);
+                        // ---
+
                         GameSession newGame = new GameSession(conn, senderName, targetSocket, targetName, this);
 
-                        // 2. Registrar a ambos jugadores en el mapa de partidas
                         activeGames.put(conn, newGame);
                         activeGames.put(targetSocket, newGame);
                         
-                        // 3. Añadir la Raspberry Pi como espectadora
                         if (raspberryPiSocket != null) {
                             System.out.println("Añadiendo Pi como espectadora...");
                             newGame.addSpectator(raspberryPiSocket, "Pantalla");
                         }
 
-                        // 4. Iniciar el hilo del juego (empezará la cuenta atrás)
                         newGame.start();
                         
-                        // NOTA: Ya no enviamos "challenge_accepted".
-                        // El "game_start" enviado por la GameSession se encarga de notificar.
-
                     } else {
-                        // El reto fue rechazado
                         JSONObject declinedMsg = new JSONObject()
                                 .put("type", "challenge_declined")
-                                .put("from", senderName); // Quién rechazó
+                                .put("from", senderName); 
                         sendSafe(targetSocket, declinedMsg.toString());
                         System.out.println(senderName + " RECHAZÓ el reto de " + targetName);
                     }
@@ -324,7 +319,6 @@ public class Main extends WebSocketServer {
         }
     }
 
-
     @Override
     public void onError(WebSocket conn, Exception ex) {
         ex.printStackTrace();
@@ -334,10 +328,9 @@ public class Main extends WebSocketServer {
     public void onStart() {
         System.out.println("Servidor WebSocket engegat al port: " + getPort());
         setConnectionLostTimeout(100);
-        // Mostra la mateixa ajuda que /help
         System.out.println(HELP_TEXT);
         Thread repl = new Thread(this::replWithHistory, "stdin-broadcast-loop");
-        repl.setDaemon(true); // no impedeix la sortida si tot s'ha parat
+        repl.setDaemon(true); 
         repl.start();
     }
 
@@ -358,10 +351,8 @@ public class Main extends WebSocketServer {
                 try {
                     line = reader.readLine("> ");
                 } catch (UserInterruptException e) {
-                    // Ctrl+C al REPL: ignorem i continuem
                     continue;
                 } catch (EndOfFileException e) {
-                    // Ctrl+D: atura i senyalitza sortida
                     safeStopServer();
                     quitLatch.countDown();
                     break;
@@ -434,12 +425,10 @@ public class Main extends WebSocketServer {
 
     private void safeStopServer() {
         try {
-            // 1s de timeout per tancar netament
             stop(1000);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            // Si falla, forcem una sortida més endavant via quitLatch
             System.out.println("Avis: stop() ha llençat: " + e.getMessage());
         }
     }
@@ -451,7 +440,6 @@ public class Main extends WebSocketServer {
         ImageLoadResult(String name, String b64) { this.displayName = name; this.base64 = b64; }
     }
 
-    /** Retorna Base64 d'una imatge (PNG/JPG/JPEG) via path o classpath:. No accepta .b64 */
     private static ImageLoadResult loadImageBase64(String spec) throws Exception {
         String lower = spec.toLowerCase(Locale.ROOT);
         if (lower.startsWith("classpath:")) {
@@ -514,7 +502,10 @@ public class Main extends WebSocketServer {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+
+        // --- ¡BLOQUE FINAL CORREGIDO! ---
+        System.out.println("Cerrando el logger...");
+        server.logger.close(); 
         System.out.println("Sortint…");
-  
     }
 }
