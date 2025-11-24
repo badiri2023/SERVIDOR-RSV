@@ -83,6 +83,11 @@
             <artifactId>Java-WebSocket</artifactId>
             <version>1.5.3</version>
         </dependency>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.45.3.0</version>
+        </dependency>
         <!-- Advanced command line tools -->
         <dependency>
             <groupId>org.jline</groupId>

@@ -13,7 +13,7 @@ public class GameSession implements Runnable {
     private static final int LOADING_SCREEN_MS = 3000; 
     private static final int PRE_COUNTDOWN_MS = 2000; 
     
-    private static final double BALL_SPEED = 0.00; // NOTA: Sigue a 0.00
+    private static final double BALL_SPEED = 0.005; // NOTA: Sigue a 0.00
     private static final double PADDLE_HEIGHT_NORMALIZED = 0.2; 
 
     private final WebSocket p1;
